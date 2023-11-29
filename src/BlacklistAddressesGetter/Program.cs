@@ -6,6 +6,9 @@ using Nethereum.Util;
 using Nethereum.Web3;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
+using Nethereum.ABI.FunctionEncoding.Attributes;
+using Nethereum.Contracts;
+using Nethereum.Web3.Accounts;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -86,33 +89,38 @@ async Task HandlePossiblyMaliciousAddress(Update update)
     }
 }
 
-async Task SendAddressToBlacklist(string address)
+
+async Task SendAddressToBlacklist(string newBlackListAddress)
 {
-    var web3 = new Web3("http://127.0.0.1:8545");
+    // Initialize the account with your private key
+    var privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    var account = new Nethereum.Web3.Accounts.Account(privateKey);
 
-    var contractAddress = "0xYourContractAddress";
-    var contractAbi = "YourContractAbiJson";
+    // Create an instance of Web3 with the account, which will use the account to sign transactions
+    var web3 = new Web3(account, "http://127.0.0.1:8545");
 
-    var contract = web3.Eth.GetContract(contractAbi, contractAddress);
+    // The address of the contract
+    var contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
-    var function = contract.GetFunction("yourFunctionName");
-    var result = await function.CallAsync<string>(address);
-
-    var privateKey = "yourPrivateKey";
-
-    // Create a new transaction
-    var transactionInput = new TransactionInput
+    // Prepare the function message
+    var addBlackListFunctionMessage = new AddBlackListFunction
     {
-        From = "yourSenderAddress",
-        To = "recipientAddress",
-        Gas = new HexBigInteger(21000),
-        GasPrice = new HexBigInteger(20000000000),
-        Value = new HexBigInteger(Web3.Convert.ToWei(1, UnitConversion.EthUnit.Ether)),
+        Address = newBlackListAddress // Replace with the address you want to add to the blacklist
     };
 
-    // Sign the transaction locally
-    var signedTransaction = web3.Eth.Transactions.SendTransaction.SendRequestAsync(transactionInput, privateKey).Result;
+    // Create a transaction handler for the AddBlackListFunction
+    var transactionHandler = web3.Eth.GetContractTransactionHandler<AddBlackListFunction>();
 
-    // Send the signed transaction to the network
-    var transactionHash = await web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(signedTransaction);
+    // Send the transaction and wait for the receipt
+    var transactionReceipt = await transactionHandler.SendRequestAndWaitForReceiptAsync(contractAddress, addBlackListFunctionMessage);
+
+    Console.WriteLine("Transaction successful. Transaction Hash: " + transactionReceipt.TransactionHash);
 }
+
+[Function("addBlackList")]
+public class AddBlackListFunction : FunctionMessage
+{
+    [Parameter("address", "_address", 1)]
+    public string Address { get; set; }
+}
+
