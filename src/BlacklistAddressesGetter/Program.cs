@@ -1,5 +1,10 @@
 ﻿using BlacklistAddressesGetter.DTOs;
 using BlacklistAddressesGetter.Handlers;
+using Nethereum.Hex.HexTypes;
+using Nethereum.RPC.Eth.DTOs;
+using Nethereum.Util;
+using Nethereum.Web3;
+using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -68,6 +73,8 @@ async Task HandlePossiblyMaliciousAddress(Update update)
             if (addressIsMalicious)
             {
                 Console.WriteLine($"Address '{possibleMaliciousAddress}' is malicious.");
+
+                await SendAddressToBlacklist(possibleMaliciousAddress);
             }
             else
             {
@@ -77,4 +84,35 @@ async Task HandlePossiblyMaliciousAddress(Update update)
             _contextMessages.RemoveAll(x => x.Key == possibleMaliciousAddress);
         }
     }
+}
+
+async Task SendAddressToBlacklist(string address)
+{
+    var web3 = new Web3("http://127.0.0.1:8545");
+
+    var contractAddress = "0xYourContractAddress";
+    var contractAbi = "YourContractAbiJson";
+
+    var contract = web3.Eth.GetContract(contractAbi, contractAddress);
+
+    var function = contract.GetFunction("yourFunctionName");
+    var result = await function.CallAsync<string>(address);
+
+    var privateKey = "yourPrivateKey";
+
+    // Create a new transaction
+    var transactionInput = new TransactionInput
+    {
+        From = "yourSenderAddress",
+        To = "recipientAddress",
+        Gas = new HexBigInteger(21000),
+        GasPrice = new HexBigInteger(20000000000),
+        Value = new HexBigInteger(Web3.Convert.ToWei(1, UnitConversion.EthUnit.Ether)),
+    };
+
+    // Sign the transaction locally
+    var signedTransaction = web3.Eth.Transactions.SendTransaction.SendRequestAsync(transactionInput, privateKey).Result;
+
+    // Send the signed transaction to the network
+    var transactionHash = await web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(signedTransaction);
 }
