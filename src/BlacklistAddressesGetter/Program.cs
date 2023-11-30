@@ -46,10 +46,16 @@ async Task HandlePossiblyMaliciousAddress(Update update)
     var messageText = update.ChannelPost.Text;
     Console.WriteLine($"Received message '{messageText}'");
 
+    if (string.IsNullOrEmpty(messageText))
+    {
+        return;
+    }
+
     Match addressMatch = _addressRegex.Match(messageText);
     if (addressMatch.Success)
     {
         var possibleMaliciousAddress = addressMatch.Value;
+        Console.ForegroundColor = ConsoleColor.Blue;
         Console.WriteLine($"Found address '{possibleMaliciousAddress}'");
 
         var telegramMessage = new TelegramMessageDto
@@ -75,12 +81,14 @@ async Task HandlePossiblyMaliciousAddress(Update update)
             var addressIsMalicious = await AIHandler.CheckIfAddressIsMaliciousAsync(addressMatch.Value, contextMessages);
             if (addressIsMalicious)
             {
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Address '{possibleMaliciousAddress}' is malicious.");
 
                 await SendAddressToBlacklist(possibleMaliciousAddress);
             }
             else
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"Address '{possibleMaliciousAddress}' is not malicious.");
             }
 
@@ -114,6 +122,7 @@ async Task SendAddressToBlacklist(string newBlackListAddress)
     // Send the transaction and wait for the receipt
     var transactionReceipt = await transactionHandler.SendRequestAndWaitForReceiptAsync(contractAddress, addBlackListFunctionMessage);
 
+    Console.ForegroundColor = ConsoleColor.Green;
     Console.WriteLine("Transaction successful. Transaction Hash: " + transactionReceipt.TransactionHash);
 }
 
